@@ -2,6 +2,7 @@ package com.exm.flipkartclone.requestdto;
 
 import com.exm.flipkartclone.enums.UserRole;
 
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -16,6 +17,7 @@ public class UserRequestDto {
 	
 	@NotEmpty(message = "email cannot be empty")
 	@Email(regexp = "[a-zA-Z0-9+_.-]+@[g][m][a][i][l]+.[c][o][m]", message = "invalid email--Should be in the extension of '@gmail.com' ")
+	@Column(unique = true)
 	private String email;
 	
 	@NotEmpty(message = "userRole cannot be empty")
@@ -25,4 +27,8 @@ public class UserRequestDto {
 	private String password;
 	
 	private UserRole userRole;
+	private String userName;
+	
+
+	
 }

@@ -6,4 +6,6 @@ import com.exm.flipkartclone.entity.Seller;
 
 public interface SellerRepo  extends JpaRepository<Seller, Integer>{
 
+	
+
 }

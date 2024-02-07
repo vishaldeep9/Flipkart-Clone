@@ -13,8 +13,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserResponce {
+public class UserResponceDto {
 	private String email;
 	private int userId;
 	private UserRole userRole;
+	private String userName;
+	private boolean isEmailVerified;
+	private boolean isDeleated;
 }

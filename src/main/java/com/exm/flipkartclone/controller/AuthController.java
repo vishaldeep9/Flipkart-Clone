@@ -3,10 +3,13 @@ package com.exm.flipkartclone.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.method.P;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.exm.flipkartclone.requestdto.OtpModel;
 import com.exm.flipkartclone.requestdto.UserRequestDto;
 import com.exm.flipkartclone.responcedto.UserResponceDto;
 import com.exm.flipkartclone.service.AuthService;
@@ -26,4 +29,10 @@ public class AuthController {
 		return authService.registerUser(userRequest);
 	}
 
+	
+	@PostMapping("/verify-otp")
+	public ResponseEntity<String> verifyOtp(@RequestBody OtpModel  otpModel ){
+		
+		return authService.verifyOtp(otpModel);
+	}
 }

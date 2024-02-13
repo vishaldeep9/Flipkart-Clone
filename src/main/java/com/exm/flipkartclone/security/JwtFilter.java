@@ -45,9 +45,11 @@ public class JwtFilter  extends OncePerRequestFilter{
 			if(cookie.getName().equals("at")) at=cookie.getValue();
 			if(cookie.getName().equals("rt")) rt=cookie.getValue();
 		}
+		String username=null;
 		
 		
-		if(at==null || rt==null )throw new RuntimeException("user not logged in");
+		
+		if(at==null && rt==null )throw new RuntimeException("user not logged in");
 		Optional<AccessToken> accessToken = accessTokenRepo.findByTokenAndIsBlocked(at,false);
 		
 		if(accessToken==null ) throw new RuntimeException();
@@ -65,5 +67,7 @@ public class JwtFilter  extends OncePerRequestFilter{
 		// for further Filter
 		filterChain.doFilter(request, response);
 	}
+	
+	
 
 }

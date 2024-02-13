@@ -2,8 +2,10 @@ package com.exm.flipkartclone.serviceimpl;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -53,7 +56,6 @@ public class AuthServiceImpl implements AuthService {
 
 	private PasswordEncoder passwordEncoder;
 
-	
 	private JwtService jwtService;
 
 	private AccessTokenRepo accessTokenRepo;
@@ -68,16 +70,14 @@ public class AuthServiceImpl implements AuthService {
 
 	private CookieManager cookieManager;
 
+	@Autowired
 	private AuthenticationManager authenticationManager;
-
-	
 
 	private CacheStore<User> userCacheStore;
 
 	private CacheStore<String> otpCacheStore;
 
 	private ResponceStructure<UserResponceDto> responceStructure;
-	
 
 	private UserRepo userRepo;
 
@@ -88,15 +88,17 @@ public class AuthServiceImpl implements AuthService {
 	private JavaMailSender javaMailSender;
 
 	private ResponceStructure<AuthResponce> authStructure;
-	
+
 	private SimpleResponceStructure<AuthResponce> authResponceStructure;
 
-	public AuthServiceImpl(PasswordEncoder passwordEncoder,
-			JwtService jwtService, AccessTokenRepo accessTokenRepo, RefreshTokenRepo refreshTokenRepo,
-			 CookieManager cookieManager,
-			AuthenticationManager authenticationManager,  CacheStore<User> userCacheStore,
-			CacheStore<String> otpCacheStore, ResponceStructure<UserResponceDto> responceStructure, UserRepo userRepo,
-			CustomerRepo customerRepo, SellerRepo sellerRepo, JavaMailSender javaMailSender) {
+	
+
+	public AuthServiceImpl(PasswordEncoder passwordEncoder, JwtService jwtService, AccessTokenRepo accessTokenRepo,
+			RefreshTokenRepo refreshTokenRepo, CookieManager cookieManager, AuthenticationManager authenticationManager,
+			CacheStore<User> userCacheStore, CacheStore<String> otpCacheStore,
+			ResponceStructure<UserResponceDto> responceStructure, UserRepo userRepo, CustomerRepo customerRepo,
+			SellerRepo sellerRepo, JavaMailSender javaMailSender, ResponceStructure<AuthResponce> authStructure,
+			SimpleResponceStructure<AuthResponce> authResponceStructure) {
 		super();
 		this.passwordEncoder = passwordEncoder;
 		this.jwtService = jwtService;
@@ -104,7 +106,6 @@ public class AuthServiceImpl implements AuthService {
 		this.refreshTokenRepo = refreshTokenRepo;
 		this.cookieManager = cookieManager;
 		this.authenticationManager = authenticationManager;
-		
 		this.userCacheStore = userCacheStore;
 		this.otpCacheStore = otpCacheStore;
 		this.responceStructure = responceStructure;
@@ -112,30 +113,81 @@ public class AuthServiceImpl implements AuthService {
 		this.customerRepo = customerRepo;
 		this.sellerRepo = sellerRepo;
 		this.javaMailSender = javaMailSender;
+		this.authStructure = authStructure;
+		this.authResponceStructure = authResponceStructure;
 	}
-	
+
 	@Override
-	public ResponseEntity<SimpleResponceStructure<AuthResponce>> logout(String refreshToken,
-			String accessToken,HttpServletRequest servletRequest,HttpServletResponse servletResponse) {
-		     
-		String rt="";
-		String at="";
-		
-		if(accessToken==null&& refreshToken==null) throw new UserNotLoggedInException("");
-		    
-		    accessTokenRepo.findByToken(at).ifPresent(accesToken-> {
-		    	accesToken.setBlocked(true);
-		    	accessTokenRepo.save(accesToken);
-		    });
-		    
-		   
-		      servletResponse.addCookie(cookieManager.invalidate(new Cookie(at, "")));
-		      servletResponse.addCookie(cookieManager.invalidate(new Cookie(rt, "")));
-		      authResponceStructure.setMessage("user has been logged out");
-    		  authResponceStructure.setStatus(HttpStatus.GONE.value());
-		      return new ResponseEntity<SimpleResponceStructure<AuthResponce>>(authResponceStructure,HttpStatus.GONE);
+	public void revokeOther(String accessToken, String refreshToken) {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		userRepo.findByUserName(username).ifPresent(user -> {
+
+			blockAccessToken(accessTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user, false, accessToken));
+
+			blockRefreshToken(refreshTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user, false, accessToken));
+		});
+
 	}
-	
+
+	private void blockAccessToken(List<AccessToken> accessToken) {
+		accessToken.forEach(at -> {
+			at.setBlocked(true);
+			accessTokenRepo.save(at);
+		});
+	}
+
+	private void blockRefreshToken(List<AccessToken> refreshToken) {
+		refreshToken.forEach(rt -> {
+			rt.setBlocked(true);
+			refreshTokenRepo.save(rt);
+		});
+	}
+
+	@Override
+	public ResponseEntity<SimpleResponceStructure<AuthResponce>> revokeAll() {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		userRepo.findByUserName(username).ifPresent(user -> {
+
+			accessTokenRepo.findByUserAndIsBlocked(user, false).ifPresent(accessToken -> {
+				accessToken.setBlocked(true);
+				accessTokenRepo.save(accessToken);
+			});
+
+			refreshTokenRepo.findByUserAndIsBlocked(user, false).ifPresent(refreshToken -> {
+				refreshToken.setBlocked(true);
+				refreshTokenRepo.save(refreshToken);
+
+			});
+
+		});
+
+		authResponceStructure.setMessage("revoked all devices succesfully");
+		authResponceStructure.setStatus(HttpStatus.OK.value());
+
+		return new ResponseEntity<SimpleResponceStructure<AuthResponce>>(authResponceStructure, HttpStatus.OK);
+	}
+
+	@Override
+	public ResponseEntity<SimpleResponceStructure<AuthResponce>> logout(String refreshToken, String accessToken,
+			HttpServletRequest servletRequest, HttpServletResponse servletResponse) {
+
+		String rt = "";
+		String at = "";
+
+		if (accessToken == null && refreshToken == null)
+			throw new UserNotLoggedInException("");
+
+		accessTokenRepo.findByToken(at).ifPresent(accesToken -> {
+			accesToken.setBlocked(true);
+			accessTokenRepo.save(accesToken);
+		});
+
+		servletResponse.addCookie(cookieManager.invalidate(new Cookie(at, "")));
+		servletResponse.addCookie(cookieManager.invalidate(new Cookie(rt, "")));
+		authResponceStructure.setMessage("user has been logged out");
+		authResponceStructure.setStatus(HttpStatus.GONE.value());
+		return new ResponseEntity<SimpleResponceStructure<AuthResponce>>(authResponceStructure, HttpStatus.GONE);
+	}
 
 	@Override
 	public ResponseEntity<ResponceStructure<AuthResponce>> login(AuthRequest authRequest,
@@ -152,27 +204,16 @@ public class AuthServiceImpl implements AuthService {
 			// generating the cookies and returning to the client
 			return userRepo.findByUserName(username).map(user -> {
 				grantAccess(response, user);
-				
-			return	ResponseEntity.ok(
-						authStructure.setStatus(HttpStatus.OK.value())
-						.setMessage("")
-						.setData(AuthResponce.builder()
-								.userId(user.getUserId())
-								.userName(username)
-								.role(user.getUserRole().name())
-								.isAuthenticated(true)
+
+				return ResponseEntity.ok(authStructure.setStatus(HttpStatus.OK.value()).setMessage("")
+						.setData(AuthResponce.builder().userId(user.getUserId()).userName(username)
+								.role(user.getUserRole().name()).isAuthenticated(true)
 								.accessExpiration(LocalDateTime.now().plusSeconds(acccesExpiryInseconds))
-								.refreshExpriration(LocalDateTime.now().plusSeconds(refreshExpiryInseconds))
-								.build()));
-				
+								.refreshExpriration(LocalDateTime.now().plusSeconds(refreshExpiryInseconds)).build()));
+
 			}).get();
-			}
+		}
 	}
-
-
-
-
-
 
 	// <T extends Users>----> DataType of T, T--> Actual Data returning
 	@SuppressWarnings("unchecked")
@@ -249,9 +290,8 @@ public class AuthServiceImpl implements AuthService {
 //			}
 //		}
 		return new ResponseEntity<ResponceStructure<UserResponceDto>>(
-				responceStructure.setStatus(HttpStatus.ACCEPTED.value())
-				.setMessage("Please Verify through Opt " + OTP)
-				.setData(mapToUserResponce(user)),
+				responceStructure.setStatus(HttpStatus.ACCEPTED.value()).setMessage("Please Verify through Opt " + OTP)
+						.setData(mapToUserResponce(user)),
 				HttpStatus.ACCEPTED);
 	}
 
@@ -304,7 +344,6 @@ public class AuthServiceImpl implements AuthService {
 
 				).build());
 	}
-	
 
 	private String generateOtp() {
 		return String.valueOf(new Random().nextInt(100000, 999999));
@@ -343,10 +382,5 @@ public class AuthServiceImpl implements AuthService {
 				.expiration(LocalDateTime.now().plusSeconds(refreshExpiryInseconds)).build());
 
 	}
-
-
-
-
-
 
 }

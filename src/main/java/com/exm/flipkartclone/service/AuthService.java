@@ -26,4 +26,9 @@ public interface AuthService {
 	ResponseEntity<SimpleResponceStructure<AuthResponce>> logout(String accessToken, String refreshToken,
 			HttpServletRequest request, HttpServletResponse response);
 
+
+	ResponseEntity<SimpleResponceStructure<AuthResponce>> revokeAll();
+
+	void revokeOther(String accessToken, String refreshToken);
+
 }

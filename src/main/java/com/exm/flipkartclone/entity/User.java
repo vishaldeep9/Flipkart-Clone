@@ -35,5 +35,9 @@ public class User {
 	
 	private boolean isEmailVerified;
 	private boolean isDeleated;
+	public void setBlocked(boolean b) {
+		// TODO Auto-generated method stub
+		
+	}
 	
 }

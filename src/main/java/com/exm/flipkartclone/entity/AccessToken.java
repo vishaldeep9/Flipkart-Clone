@@ -28,7 +28,7 @@ public class AccessToken {
 	private boolean isBlocked;
 	private LocalDateTime expiration;
 	
-
+     
 	@ManyToOne
 	private User user;
 

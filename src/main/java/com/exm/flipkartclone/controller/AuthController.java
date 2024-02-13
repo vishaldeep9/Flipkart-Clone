@@ -2,9 +2,7 @@ package com.exm.flipkartclone.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.method.P;
 import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,10 +46,25 @@ public class AuthController {
 	}
 
 	@PostMapping("/logout")
-	public ResponseEntity<SimpleResponceStructure<AuthResponce>> logout(
-			@CookieValue(name = "at", required = false) String accessToken,
+	public ResponseEntity<SimpleResponceStructure<AuthResponce>> logout(@CookieValue(name = "at", required = false) String accessToken,
 			@CookieValue(name = "rt", required = false) String refreshToken, HttpServletRequest request,
 			HttpServletResponse response) {
 		return authService.logout(accessToken, refreshToken, request, response);
 	}
+	
+	@PostMapping("/revoke-all")
+	public  ResponseEntity<SimpleResponceStructure<AuthResponce>> revokeAll(){
+		
+		return authService.revokeAll();
+	}
+	
+	@PostMapping("/revoke-other")
+	public void revokeOther(String accessToken,String refreshToken){
+		 authService.revokeOther(accessToken,refreshToken);
+		
+	}
+	
+	
+	
+	
 }
